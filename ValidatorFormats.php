@@ -2,27 +2,52 @@
 
 namespace geekcom\ValidatorDocs;
 
-use geekcom\ValidatorDocs\Contracts\ValidatorFormats as Contract;
-use Exception;
+use geekcom\ValidatorDocs\Contracts\ValidatorFormats as ValidatorContract;
+use InvalidArgumentException;
+use RuntimeException;
 
 class ValidatorFormats
 {
-    private const STRATEGY_NAMESPACE = 'geekcom\ValidatorDocs\Formats\%s';
+    private const STRATEGY_NAMESPACE = 'geekcom\\ValidatorDocs\\Formats\\%s';
 
     public function execute(string $value, string $document): bool
     {
-        if (!$value) {
-            throw new Exception('Value not informed.');
+        if ($value === '') {
+            throw new InvalidArgumentException('Value not informed.');
         }
 
-        $validator = sprintf(self::STRATEGY_NAMESPACE, ucfirst($document));
-        if (
-            class_exists($validator)
-            && new $validator() instanceof Contract
-        ) {
-            return $validator::validateFormat($value);
+        if ($document === '') {
+            throw new InvalidArgumentException('Document not informed.');
         }
 
-        throw new Exception('Don\'t exists validator for this document.');
+        $validatorClass = $this->resolveValidatorClass($document);
+
+        return $validatorClass::validateFormat($value);
+    }
+
+    private function resolveValidatorClass(string $document): string
+    {
+        $class = sprintf(
+            self::STRATEGY_NAMESPACE,
+            ucfirst($document)
+        );
+
+        if (!class_exists($class)) {
+            throw new RuntimeException(
+                sprintf('Validator for document "%s" does not exist.', $document)
+            );
+        }
+
+        if (!is_subclass_of($class, ValidatorContract::class)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Validator "%s" must implement %s.',
+                    $class,
+                    ValidatorContract::class
+                )
+            );
+        }
+
+        return $class;
     }
 }
