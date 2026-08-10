@@ -2,7 +2,7 @@
 
 namespace geekcom\ValidatorDocs;
 
-use geekcom\ValidatorDocs\Contracts\ValidatorFormats as ValidatorContract;
+use geekcom\ValidatorDocs\Contracts\ValidatorFormats as Contract;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -22,32 +22,30 @@ class ValidatorFormats
 
         $validatorClass = $this->resolveValidatorClass($document);
 
-        return $validatorClass::validateFormat($value);
-    }
-
-    private function resolveValidatorClass(string $document): string
-    {
-        $class = sprintf(
-            self::STRATEGY_NAMESPACE,
-            ucfirst($document)
-        );
-
-        if (!class_exists($class)) {
+        if (!class_exists($validatorClass)) {
             throw new RuntimeException(
                 sprintf('Validator for document "%s" does not exist.', $document)
             );
         }
 
-        if (!is_subclass_of($class, ValidatorContract::class)) {
+        if (!is_subclass_of($validatorClass, Contract::class)) {
             throw new RuntimeException(
                 sprintf(
                     'Validator "%s" must implement %s.',
-                    $class,
-                    ValidatorContract::class
+                    $validatorClass,
+                    Contract::class
                 )
             );
         }
 
-        return $class;
+        return $validatorClass::validateFormat($value);
+    }
+
+    private function resolveValidatorClass(string $document): string
+    {
+        return sprintf(
+            self::STRATEGY_NAMESPACE,
+            ucfirst($document)
+        );
     }
 }
