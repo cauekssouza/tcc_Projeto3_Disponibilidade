@@ -1,3 +1,4 @@
+```php
 <?php
 
 declare(strict_types=1);
@@ -5,16 +6,16 @@ declare(strict_types=1);
 namespace geekcom\ValidatorDocs;
 
 use geekcom\ValidatorDocs\Contracts\ValidatorFormats as Contract;
-use geekcom\ValidatorDocs\Formats\Cnpj;
 use geekcom\ValidatorDocs\Formats\Cpf;
+use geekcom\ValidatorDocs\Formats\Cnpj;
 
-final class ValidatorFormats
+class ValidatorFormats
 {
     /**
-     * Allowlist explícita de validadores suportados.
+     * Mapa estático de validadores permitidos.
      *
-     * Evita resolução arbitrária de classes baseada diretamente
-     * em entrada externa (CWE-470).
+     * Evita resolução dinâmica de classes baseada diretamente
+     * em entrada controlada pelo usuário (CWE-470).
      *
      * @var array<string, class-string<Contract>>
      */
@@ -28,19 +29,12 @@ final class ValidatorFormats
         $value = trim($value);
         $document = strtolower(trim($document));
 
-        /*
-         * Fail-safe / fail-closed:
-         * entradas inválidas são rejeitadas sem lançar uma exceção
-         * capaz de interromper o fluxo da aplicação.
-         */
+        // Fail-closed: entradas inválidas não geram exceções não tratadas.
         if ($value === '' || $document === '') {
             return false;
         }
 
-        /*
-         * A entrada nunca é utilizada para montar um nome de classe.
-         * Somente classes presentes na allowlist podem ser resolvidas.
-         */
+        // Apenas documentos explicitamente permitidos podem ser resolvidos.
         $validator = self::VALIDATORS[$document] ?? null;
 
         if ($validator === null) {
@@ -48,10 +42,8 @@ final class ValidatorFormats
         }
 
         /*
-         * Defesa adicional contra configuração incorreta da allowlist.
-         *
-         * is_subclass_of() verifica o contrato sem instanciar a classe,
-         * evitando "new $validator()" e consumo desnecessário de recursos.
+         * Valida a implementação do contrato sem criar uma instância,
+         * evitando consumo desnecessário de memória/CPU (CWE-400).
          */
         if (!is_subclass_of($validator, Contract::class)) {
             return false;
@@ -60,3 +52,4 @@ final class ValidatorFormats
         return $validator::validateFormat($value);
     }
 }
+```
