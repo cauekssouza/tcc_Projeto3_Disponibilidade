@@ -1,37 +1,62 @@
 <?php
 
+declare(strict_types=1);
+
 namespace geekcom\ValidatorDocs;
 
 use geekcom\ValidatorDocs\Contracts\ValidatorFormats as Contract;
-use Throwable;
+use geekcom\ValidatorDocs\Formats\Cnpj;
+use geekcom\ValidatorDocs\Formats\Cpf;
 
-class ValidatorFormats
+final class ValidatorFormats
 {
-    private const STRATEGY_NAMESPACE = 'geekcom\\ValidatorDocs\\Formats\\%s';
+    /**
+     * Allowlist explícita de validadores suportados.
+     *
+     * Evita resolução arbitrária de classes baseada diretamente
+     * em entrada externa (CWE-470).
+     *
+     * @var array<string, class-string<Contract>>
+     */
+    private const VALIDATORS = [
+        'cpf' => Cpf::class,
+        'cnpj' => Cnpj::class,
+    ];
 
     public function execute(string $value, string $document): bool
     {
-        if (trim($value) === '' || trim($document) === '') {
+        $value = trim($value);
+        $document = strtolower(trim($document));
+
+        /*
+         * Fail-safe / fail-closed:
+         * entradas inválidas são rejeitadas sem lançar uma exceção
+         * capaz de interromper o fluxo da aplicação.
+         */
+        if ($value === '' || $document === '') {
             return false;
         }
 
-        $validator = sprintf(
-            self::STRATEGY_NAMESPACE,
-            ucfirst(strtolower(trim($document)))
-        );
+        /*
+         * A entrada nunca é utilizada para montar um nome de classe.
+         * Somente classes presentes na allowlist podem ser resolvidas.
+         */
+        $validator = self::VALIDATORS[$document] ?? null;
 
-        if (
-            !class_exists($validator)
-            || !is_subclass_of($validator, Contract::class)
-        ) {
+        if ($validator === null) {
             return false;
         }
 
-        try {
-            return (bool) $validator::validateFormat($value);
-        } catch (Throwable $exception) {
-            // Idealmente, registre a exceção em um logger aqui.
+        /*
+         * Defesa adicional contra configuração incorreta da allowlist.
+         *
+         * is_subclass_of() verifica o contrato sem instanciar a classe,
+         * evitando "new $validator()" e consumo desnecessário de recursos.
+         */
+        if (!is_subclass_of($validator, Contract::class)) {
             return false;
         }
+
+        return $validator::validateFormat($value);
     }
 }
