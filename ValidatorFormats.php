@@ -1,53 +1,61 @@
+```php
 <?php
 
 namespace geekcom\ValidatorDocs;
 
 use geekcom\ValidatorDocs\Contracts\ValidatorFormats as Contract;
-use InvalidArgumentException;
-use RuntimeException;
+use Throwable;
 
 class ValidatorFormats
 {
-    private const STRATEGY_NAMESPACE = 'geekcom\\ValidatorDocs\\Formats\\';
+    private const STRATEGY_NAMESPACE = 'geekcom\\ValidatorDocs\\Formats\\%s';
 
     public function execute(string $value, string $document): bool
     {
-        if ($value === '') {
-            throw new InvalidArgumentException('Value not informed.');
-        }
+        $value = trim($value);
+        $document = trim($document);
 
-        if ($document === '') {
-            throw new InvalidArgumentException('Document not informed.');
+        if ($value === '' || $document === '') {
+            return false;
         }
 
         $validator = $this->resolveValidator($document);
 
-        return $validator::validateFormat($value);
+        if ($validator === null) {
+            return false;
+        }
+
+        try {
+            return $validator::validateFormat($value);
+        } catch (Throwable $exception) {
+            // Aqui pode ser adicionado logging, caso exista um logger na aplicação.
+            return false;
+        }
     }
 
     /**
-     * @return class-string<Contract>
+     * @return class-string<Contract>|null
      */
-    private function resolveValidator(string $document): string
+    private function resolveValidator(string $document): ?string
     {
-        $validator = self::STRATEGY_NAMESPACE . ucfirst($document);
+        if (!preg_match('/^[a-zA-Z0-9]+$/', $document)) {
+            return null;
+        }
+
+        $validator = sprintf(
+            self::STRATEGY_NAMESPACE,
+            ucfirst(strtolower($document))
+        );
 
         if (!class_exists($validator)) {
-            throw new RuntimeException(
-                sprintf('Validator for document "%s" does not exist.', $document)
-            );
+            return null;
         }
 
         if (!is_subclass_of($validator, Contract::class)) {
-            throw new RuntimeException(
-                sprintf(
-                    'Validator "%s" must implement %s.',
-                    $validator,
-                    Contract::class
-                )
-            );
+            return null;
         }
 
         return $validator;
     }
 }
+```
