@@ -1,4 +1,3 @@
-```php
 <?php
 
 namespace geekcom\ValidatorDocs;
@@ -12,50 +11,27 @@ class ValidatorFormats
 
     public function execute(string $value, string $document): bool
     {
-        $value = trim($value);
-        $document = trim($document);
-
-        if ($value === '' || $document === '') {
+        if (trim($value) === '' || trim($document) === '') {
             return false;
         }
 
-        $validator = $this->resolveValidator($document);
+        $validator = sprintf(
+            self::STRATEGY_NAMESPACE,
+            ucfirst(trim($document))
+        );
 
-        if ($validator === null) {
+        if (!class_exists($validator)) {
+            return false;
+        }
+
+        if (!is_subclass_of($validator, Contract::class)) {
             return false;
         }
 
         try {
             return $validator::validateFormat($value);
         } catch (Throwable $exception) {
-            // Aqui pode ser adicionado logging, caso exista um logger na aplicação.
             return false;
         }
     }
-
-    /**
-     * @return class-string<Contract>|null
-     */
-    private function resolveValidator(string $document): ?string
-    {
-        if (!preg_match('/^[a-zA-Z0-9]+$/', $document)) {
-            return null;
-        }
-
-        $validator = sprintf(
-            self::STRATEGY_NAMESPACE,
-            ucfirst(strtolower($document))
-        );
-
-        if (!class_exists($validator)) {
-            return null;
-        }
-
-        if (!is_subclass_of($validator, Contract::class)) {
-            return null;
-        }
-
-        return $validator;
-    }
 }
-```
