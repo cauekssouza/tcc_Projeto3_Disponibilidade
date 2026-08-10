@@ -8,7 +8,7 @@ use RuntimeException;
 
 class ValidatorFormats
 {
-    private const STRATEGY_NAMESPACE = 'geekcom\\ValidatorDocs\\Formats\\%s';
+    private const STRATEGY_NAMESPACE = 'geekcom\\ValidatorDocs\\Formats\\';
 
     public function execute(string $value, string $document): bool
     {
@@ -20,32 +20,34 @@ class ValidatorFormats
             throw new InvalidArgumentException('Document not informed.');
         }
 
-        $validatorClass = $this->resolveValidatorClass($document);
+        $validator = $this->resolveValidator($document);
 
-        if (!class_exists($validatorClass)) {
+        return $validator::validateFormat($value);
+    }
+
+    /**
+     * @return class-string<Contract>
+     */
+    private function resolveValidator(string $document): string
+    {
+        $validator = self::STRATEGY_NAMESPACE . ucfirst($document);
+
+        if (!class_exists($validator)) {
             throw new RuntimeException(
                 sprintf('Validator for document "%s" does not exist.', $document)
             );
         }
 
-        if (!is_subclass_of($validatorClass, Contract::class)) {
+        if (!is_subclass_of($validator, Contract::class)) {
             throw new RuntimeException(
                 sprintf(
                     'Validator "%s" must implement %s.',
-                    $validatorClass,
+                    $validator,
                     Contract::class
                 )
             );
         }
 
-        return $validatorClass::validateFormat($value);
-    }
-
-    private function resolveValidatorClass(string $document): string
-    {
-        return sprintf(
-            self::STRATEGY_NAMESPACE,
-            ucfirst($document)
-        );
+        return $validator;
     }
 }
