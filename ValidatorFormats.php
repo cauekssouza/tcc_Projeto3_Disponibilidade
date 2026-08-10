@@ -17,20 +17,20 @@ class ValidatorFormats
 
         $validator = sprintf(
             self::STRATEGY_NAMESPACE,
-            ucfirst(trim($document))
+            ucfirst(strtolower(trim($document)))
         );
 
-        if (!class_exists($validator)) {
-            return false;
-        }
-
-        if (!is_subclass_of($validator, Contract::class)) {
+        if (
+            !class_exists($validator)
+            || !is_subclass_of($validator, Contract::class)
+        ) {
             return false;
         }
 
         try {
-            return $validator::validateFormat($value);
+            return (bool) $validator::validateFormat($value);
         } catch (Throwable $exception) {
+            // Idealmente, registre a exceção em um logger aqui.
             return false;
         }
     }
