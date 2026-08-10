@@ -6,16 +6,16 @@ declare(strict_types=1);
 namespace geekcom\ValidatorDocs;
 
 use geekcom\ValidatorDocs\Contracts\ValidatorFormats as Contract;
-use geekcom\ValidatorDocs\Formats\Cpf;
 use geekcom\ValidatorDocs\Formats\Cnpj;
+use geekcom\ValidatorDocs\Formats\Cpf;
 
-class ValidatorFormats
+final class ValidatorFormats
 {
     /**
      * Mapa estático de validadores permitidos.
      *
-     * Evita resolução dinâmica de classes baseada diretamente
-     * em entrada controlada pelo usuário (CWE-470).
+     * Impede que entrada externa seja utilizada diretamente
+     * para resolução ou carregamento arbitrário de classes.
      *
      * @var array<string, class-string<Contract>>
      */
@@ -29,7 +29,7 @@ class ValidatorFormats
         $value = trim($value);
         $document = strtolower(trim($document));
 
-        // Fail-closed: entradas inválidas não geram exceções não tratadas.
+        // Fail-closed: entrada inválida não gera exceção não tratada.
         if ($value === '' || $document === '') {
             return false;
         }
@@ -42,13 +42,17 @@ class ValidatorFormats
         }
 
         /*
-         * Valida a implementação do contrato sem criar uma instância,
-         * evitando consumo desnecessário de memória/CPU (CWE-400).
+         * Evita "new $validator()" somente para verificar o contrato,
+         * reduzindo instanciações e consumo desnecessário de recursos.
          */
         if (!is_subclass_of($validator, Contract::class)) {
             return false;
         }
 
+        /*
+         * A classe vem exclusivamente da allowlist.
+         * Nenhum nome de classe é construído a partir da entrada externa.
+         */
         return $validator::validateFormat($value);
     }
 }
